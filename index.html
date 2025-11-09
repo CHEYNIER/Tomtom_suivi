@@ -352,3 +352,25 @@
     </script>
 </body>
 </html>
+npm install firebase
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyDilpknYSeSj2-4Q1xsFc4NfehZXxEnPnQ",
+  authDomain: "tomtom-connect.firebaseapp.com",
+  projectId: "tomtom-connect",
+  storageBucket: "tomtom-connect.firebasestorage.app",
+  messagingSenderId: "511599756901",
+  appId: "1:511599756901:web:ad86f208e0dd561858288c",
+  measurementId: "G-XQ9SL95199"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
