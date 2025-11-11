@@ -4,36 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mon Suivi TomTom PWA</title>
-    <!-- Importation des bibliothèques nécessaires pour React, ReactDOM, Tailwind et Recharts -->
+    <!-- 1. Importation des bibliothèques nécessaires (React doit être chargé en premier) -->
     <script src="https://unpkg.com/react/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 2. Recharts pour les graphiques -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/recharts.min.js"></script>
 
-    <!-- Configuration Firebase et CSS Tailwind -->
+    <!-- 3. Configuration Firebase (chargement des modules via CDN) -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, query, onSnapshot, addDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        window.firebase = { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, collection, query, onSnapshot, addDoc };
-        window.recharts = { 
-            LineChart: Recharts.LineChart, 
-            Line: Recharts.Line, 
-            XAxis: Recharts.XAxis, 
-            YAxis: Recharts.YAxis, 
-            CartesianGrid: Recharts.CartesianGrid, 
-            Tooltip: Recharts.Tooltip, 
-            Legend: Recharts.Legend, 
-            ResponsiveContainer: Recharts.ResponsiveContainer 
-        };
+        // Active les logs de debug pour Firestore (utile pour le débuggage de connexion)
+        setLogLevel('debug'); 
+
+        // Rend les fonctions globales pour qu'elles soient accessibles par Babel/JSX
+        window.firebase = { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, collection, query, onSnapshot, addDoc, setLogLevel };
     </script>
     
     <style>
         /* Styles CSS pour améliorer l'expérience PWA */
-        body { margin: 0; padding: 0; background-color: #f8f9fa; }
-        /* Pour s'assurer que l'app utilise tout l'écran */
+        body { margin: 0; padding: 0; background-color: #f8f9fa; font-family: 'Inter', sans-serif; }
         #root { min-height: 100vh; } 
     </style>
 </head>
@@ -45,350 +40,403 @@
         </div>
     </div>
 
-    <!-- Le code JavaScript de l'application (JSX) -->
+    <!-- 4. Le code JavaScript de l'application (JSX) - Exécuté séquentiellement après les bibliothèques -->
     <script type="text/babel">
-        // Ceci est le contenu de votre ancien fichier TomTomActivityTracker.jsx, adapté
-        const { useState, useEffect } = React;
-        const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = window.recharts;
-        const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, getFirestore, collection, query, onSnapshot, addDoc } = window.firebase;
+        // FIX CRITIQUE: Réintroduction de window.onload pour garantir que React et ReactDOM sont définis 
+        // avant que le code JSX ne tente de les utiliser et de déstructurer React.
+        window.onload = function() {
         
-        // --- CONFIGURATION DE BASE DE FIREBASE (Utilisation des variables globales obligatoires) ---
-        // Les variables globales du Canvas (__app_id, __firebase_config, __initial_auth_token) sont ici simulées car Vercel est un environnement externe.
-        // NOTE: Si vous exécutez ceci dans l'Immersive, les vraies variables seront disponibles.
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'tomtom-tracker-pwa-001'; 
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-
-        // Initialisation des instances Firebase (avec vérification)
-        const app = Object.keys(firebaseConfig).length > 0 ? initializeApp(firebaseConfig) : null;
-        const db = app ? getFirestore(app) : null;
-        const auth = app ? getAuth(app) : null;
-
-        // Styles Tailwind personnalisés
-        const COLORS = {
-          blue: '#0070a8',
-          orange: '#ff6600',
-          bg: '#f8f9fa',
-        };
-
-        // --- Composant Principal de l'Application ---
-        const App = () => {
-          const [activities, setActivities] = useState([]);
-          const [loading, setLoading] = useState(true);
-          const [isAuthReady, setIsAuthReady] = useState(false);
-          const [userId, setUserId] = useState(null);
-          const [error, setError] = useState(null);
-
-          // 1. Initialisation et Authentification Firebase
-          useEffect(() => {
-            if (!auth || !db) {
-                setError("La configuration Firebase est manquante. L'application ne peut pas stocker les données. Assurez-vous d'avoir configuré Firebase pour ce projet.");
-                setLoading(false);
-                return;
-            }
-
-            // Fonction d'authentification
-            const handleAuth = async () => {
-                try {
-                    if (initialAuthToken) {
-                        await signInWithCustomToken(auth, initialAuthToken);
-                    } else {
-                        // Pour une PWA gratuite sur Vercel, nous utilisons toujours l'anonyme si pas de token
-                        await signInAnonymously(auth); 
-                    }
-                } catch (e) {
-                    console.error("Erreur d'authentification:", e);
-                    setError("Échec de la connexion. Vérifiez la configuration Firebase.");
-                }
+            // Les variables React et Recharts DOIVENT être disponibles ici
+            const { useState, useEffect } = React;
+            const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } = Recharts;
+            const { initializeApp, getAuth, signInAnonymously, onAuthStateChanged, getFirestore, collection, query, onSnapshot, addDoc } = window.firebase;
+            
+            // --- CONFIGURATION FIREBASE (CLEAN) ---
+            const FIREBASE_CONFIG = {
+                apiKey: "AIzaSyDilpknYSeSj2-4Q1xsFc4NfehZXxEnPnQ",
+                authDomain: "tomtom-connect.firebaseapp.com",
+                projectId: "tomtom-connect",
+                storageBucket: "tomtom-connect.firebasestorage.app",
+                messagingSenderId: "511599756901",
+                appId: "1:511599756901:web:ad86f208e0dd561858288c",
+                measurementId: "G-XQ9SL95199"
             };
+            
+            const firebaseConfig = FIREBASE_CONFIG;
+            const appId = FIREBASE_CONFIG.projectId; 
 
-            const unsubscribe = onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    setUserId(user.uid);
+            // Initialisation des instances Firebase
+            const app = initializeApp(firebaseConfig);
+            const db = getFirestore(app);
+            const auth = getAuth(app);
+            // ---------------------------------------------
+
+
+            // Styles Tailwind personnalisés
+            const COLORS = {
+                blue: '#0070a8',
+                orange: '#ff6600',
+                bg: '#f8f9fa',
+            };
+            
+            // Composant Message Modal (pour remplacer alert())
+            const MessageModal = ({ message, type, onClose }) => {
+                if (!message) return null;
+
+                const baseStyle = "fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-70 z-50 p-4";
+                const cardStyle = `bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full transform transition-all duration-300 scale-100`;
+                let headerStyle = "text-xl font-bold mb-2";
+                let buttonStyle = "mt-4 w-full p-3 rounded-lg text-white font-bold transition";
+
+                if (type === 'error') {
+                    headerStyle += " text-red-600";
+                    buttonStyle += " bg-red-500 hover:bg-red-600";
+                } else if (type === 'success') {
+                    headerStyle += " text-green-600";
+                    buttonStyle += " bg-green-500 hover:bg-green-600";
                 } else {
-                    if (!userId) {
-                        handleAuth();
-                    } else {
-                        setUserId(null); 
+                    headerStyle += " text-blue-600";
+                    buttonStyle += " bg-blue-500 hover:bg-blue-600";
+                }
+
+                return (
+                    <div className={baseStyle} onClick={onClose}>
+                        <div className={cardStyle} onClick={(e) => e.stopPropagation()}>
+                            <h3 className={headerStyle}>{type === 'error' ? 'Erreur' : type === 'success' ? 'Succès' : 'Information'}</h3>
+                            <p className="text-gray-700">{message}</p>
+                            <button onClick={onClose} className={buttonStyle}>
+                                Fermer
+                            </button>
+                        </div>
+                    </div>
+                );
+            };
+
+            // --- Composant Principal de l'Application ---
+            const App = () => {
+                const [activities, setActivities] = useState([]);
+                const [loading, setLoading] = useState(true);
+                const [isAuthReady, setIsAuthReady] = useState(false);
+                const [userId, setUserId] = useState(null);
+                const [error, setError] = useState(null);
+                const [modal, setModal] = useState({ message: '', type: 'info' });
+
+                // Remplacer alert() par le modal
+                const showMessage = (message, type = 'info') => {
+                    setModal({ message, type });
+                }
+
+                // 1. Initialisation et Authentification Firebase
+                useEffect(() => {
+                    // Si la config est vide, on affiche une erreur immédiatement
+                    if (!db || !auth) {
+                        setError("Erreur critique: La configuration Firebase a échoué.");
+                        setLoading(false);
+                        return;
                     }
-                }
-                setIsAuthReady(true);
-                setLoading(false);
-            });
 
-            return () => unsubscribe(); 
-          }, [auth, db, initialAuthToken, userId]);
+                    // Fonction d'authentification (anonyme pour PWA)
+                    const handleAuth = async () => {
+                        try {
+                            // Utilisation de l'authentification anonyme pour connecter l'utilisateur
+                            await signInAnonymously(auth);  
+                        } catch (e) {
+                            console.error("Erreur d'authentification:", e);
+                            setError("Échec de la connexion anonyme. Vérifiez les règles d'authentification Firebase.");
+                        }
+                    };
 
-          // 2. Récupération des données d'activité en temps réel
-          useEffect(() => {
-            if (!isAuthReady || !userId || !db) return;
+                    const unsubscribe = onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                            setUserId(user.uid);
+                        } else {
+                            // Si on est déconnecté, on tente de se connecter anonymement
+                            if (!userId) {
+                                 handleAuth();
+                            } else {
+                                setUserId(null); 
+                            }
+                        }
+                        setIsAuthReady(true);
+                        setLoading(false);
+                    });
 
-            // Chemin Firestore pour les données privées de l'utilisateur
-            const activitiesPath = `artifacts/${appId}/users/${userId}/activities`;
-            const q = query(collection(db, activitiesPath)); 
+                    return () => unsubscribe(); 
+                }, []); 
 
-            const unsubscribe = onSnapshot(q, (snapshot) => {
-              const fetchedActivities = [];
-              snapshot.forEach((doc) => {
-                fetchedActivities.push({ id: doc.id, ...doc.data() });
-              });
-              // Tri manuel par date la plus récente
-              fetchedActivities.sort((a, b) => b.date.toDate().getTime() - a.date.toDate().getTime()); 
-              setActivities(fetchedActivities);
-            }, (e) => {
-                console.error("Erreur de récupération Firestore:", e);
-                setError("Impossible de charger les activités. Problème de connexion ou de permissions.");
-            });
+                // 2. Récupération des données d'activité en temps réel
+                useEffect(() => {
+                    if (!isAuthReady || !userId) return; // Attend que l'auth soit prête
 
-            return () => unsubscribe();
-          }, [isAuthReady, userId, db]); 
+                    // Chemin Firestore pour les données privées de l'utilisateur
+                    const activitiesPath = `artifacts/${appId}/users/${userId}/activities`;
+                    const q = query(collection(db, activitiesPath)); 
 
-          // --- Fonctions Métiers ---
+                    const unsubscribe = onSnapshot(q, (snapshot) => {
+                        const fetchedActivities = [];
+                        snapshot.forEach((doc) => {
+                            const data = doc.data();
+                            // Vérifie si la date est un Timestamp Firestore et la convertit
+                            const dateValue = data.date && typeof data.date.toDate === 'function' ? data.date : { toDate: () => new Date() };
 
-          // Ajout manuel d'une activité
-          const addActivity = async (data) => {
-            if (!userId || !db) {
-                alert("Veuillez vous authentifier pour ajouter des activités.");
-                return;
-            }
-            setLoading(true);
-            const activityData = {
-                ...data,
-                date: new Date(), 
-                userId: userId
-            };
+                            fetchedActivities.push({ 
+                                id: doc.id, 
+                                ...data,
+                                date: dateValue 
+                            });
+                        });
+                        
+                        // Tri manuel par date la plus récente
+                        fetchedActivities.sort((a, b) => b.date.toDate().getTime() - a.date.toDate().getTime()); 
+                        setActivities(fetchedActivities);
+                    }, (e) => {
+                        console.error("Erreur de récupération Firestore:", e);
+                        setError("Impossible de charger les activités. Vérifiez vos règles de sécurité Firestore.");
+                    });
 
-            try {
-                await addDoc(collection(db, `artifacts/${appId}/users/${userId}/activities`), activityData);
-                // Utilisation d'une boîte de message personnalisée au lieu d'alert()
-                showMessage("Activité enregistrée avec succès !", "success");
-            } catch (e) {
-                console.error("Erreur lors de l'ajout de l'activité:", e);
-                showMessage("Échec de l'enregistrement de l'activité.", "error");
-            } finally {
-                setLoading(false);
-            }
-          };
+                    return () => unsubscribe();
+                }, [isAuthReady, userId, appId]); 
 
-          // Fonction pour afficher des messages (remplace alert())
-          const showMessage = (message, type = 'info') => {
-                // Vous pouvez implémenter un composant modal ou toast ici pour un meilleur UI
-                console.log(`MESSAGE (${type.toUpperCase()}): ${message}`); 
-                alert(message); // On utilise alert en dernier recours si pas de composant UI
-          }
+                // --- Fonctions Métiers ---
 
+                // Ajout manuel d'une activité
+                const addActivity = async (data) => {
+                    if (!userId) {
+                        showMessage("Veuillez patienter pour l'authentification.", "error");
+                        return;
+                    }
+                    setLoading(true);
+                    const activityData = {
+                        ...data,
+                        // Utilisation de l'objet Date natif pour laisser Firestore créer le Timestamp
+                        date: new Date(), 
+                        userId: userId
+                    };
 
-          // Préparation des données pour le graphique (distance quotidienne)
-          const getChartData = () => {
-            const dailyData = {};
-            activities.forEach(activity => {
-                const dateKey = new Date(activity.date.toDate()).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
-                dailyData[dateKey] = (dailyData[dateKey] || 0) + activity.distance;
-            });
+                    try {
+                        await addDoc(collection(db, `artifacts/${appId}/users/${userId}/activities`), activityData);
+                        showMessage("Activité enregistrée avec succès !", "success");
+                    } catch (e) {
+                        console.error("Erreur lors de l'ajout de l'activité:", e);
+                        showMessage("Échec de l'enregistrement de l'activité. Vérifiez les permissions d'écriture.", "error");
+                    } finally {
+                        setLoading(false);
+                    }
+                };
 
-            // On prend les 7 dernières dates, puis on les met dans l'ordre chronologique
-            return Object.keys(dailyData).sort((a, b) => {
-                const dateA = new Date(a.replace(/(\d+)\s+([a-z]+)/i, '$2 $1')).getTime();
-                const dateB = new Date(b.replace(/(\d+)\s+([a-z]+)/i, '$2 $1')).getTime();
-                return dateA - dateB;
-            }).slice(-7).map(date => ({
-                name: date,
-                Distance: dailyData[date]
-            }));
-          };
+                // Préparation des données pour le graphique (distance quotidienne)
+                const getChartData = () => {
+                    const dailyData = {};
+                    activities.forEach(activity => {
+                        const date = activity.date.toDate();
+                        const dateKey = date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+                        dailyData[dateKey] = (dailyData[dateKey] || 0) + activity.distance;
+                    });
 
-          // Rendu
-          if (loading && !userId && !error) {
-            return (
-                <div className="flex items-center justify-center min-h-screen bg-gray-100">
-                    <p className="text-xl text-gray-700">Connexion à la base de données...</p>
-                </div>
-            );
-          }
+                    // Tri par date pour s'assurer que les points sont dans l'ordre chronologique
+                    const sortedKeys = Object.keys(dailyData).sort((a, b) => {
+                        const parseDateKey = (key) => {
+                            try {
+                                const [day, monthStr] = key.split(' ');
+                                const now = new Date();
+                                const year = now.getFullYear();
+                                return new Date(`${day} ${monthStr} ${year}`).getTime();
+                            } catch (e) {
+                                return 0;
+                            }
+                        };
 
-          return (
-            <div className={`p-4 sm:p-6 bg-gray-50 min-h-screen font-sans`}>
-              <div className="max-w-4xl mx-auto">
-                <header className="text-center mb-8">
-                    <h1 className="text-3xl font-extrabold text-blue-800 flex items-center justify-center">
-                        <span className="text-orange-500">MON</span> SUIVI SPORTIF PWA
-                    </h1>
-                    <p className="text-gray-600 mt-1">
-                        Application Web Progressive pour le suivi (ID: 
-                        <span className="font-mono text-xs text-red-500 break-all">{userId || 'Non Authentifié'}</span>
-                    </p>
-                    {error && <p className="mt-2 text-sm text-red-600 font-medium p-2 bg-red-100 rounded-lg">{error}</p>}
-                </header>
+                        return parseDateKey(a) - parseDateKey(b);
+                    }).slice(-7); // Ne garde que les 7 plus récentes
 
-                {/* Formulaire d'Ajout (Simule l'importation de fichier) */}
-                <ActivityForm onSubmit={addActivity} loading={loading} />
+                    return sortedKeys.map(date => ({
+                        name: date,
+                        Distance: dailyData[date]
+                    }));
+                };
 
-                {/* Section Graphique de Tendance */}
-                <div className="bg-white p-6 rounded-xl shadow-lg mb-8 border-t-4 border-blue-500">
-                    <h2 className="text-xl font-semibold mb-4 text-gray-700">Distance Quotidienne (7 derniers jours)</h2>
-                    <div style={{ width: '100%', height: 300 }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={getChartData()} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                                <XAxis dataKey="name" stroke={COLORS.blue} />
-                                <YAxis stroke={COLORS.blue} label={{ value: 'Distance (km)', angle: -90, position: 'insideLeft', fill: COLORS.blue }} />
-                                <Tooltip contentStyle={{ backgroundColor: 'white', border: `1px solid ${COLORS.blue}`, borderRadius: '8px' }} />
-                                <Legend wrapperStyle={{ paddingTop: '10px' }} />
-                                <Line type="monotone" dataKey="Distance" stroke={COLORS.orange} strokeWidth={3} dot={{ stroke: COLORS.orange, strokeWidth: 2 }} activeDot={{ r: 8 }} />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-
-                {/* Liste des Activités */}
-                <ActivityList activities={activities} />
-
-              </div>
-            </div>
-          );
-        };
-
-        // --- Composant Formulaire d'Activité ---
-        const ActivityForm = ({ onSubmit, loading }) => {
-            const [type, setType] = useState('Course');
-            const [distance, setDistance] = useState('');
-            const [duration, setDuration] = useState('');
-
-            const handleSubmit = (e) => {
-                e.preventDefault();
-                const dist = parseFloat(distance);
-                if (isNaN(dist) || dist <= 0 || !type || !duration) {
-                    alert("Veuillez remplir tous les champs correctement.");
-                    return;
+                // Rendu
+                if (loading && !isAuthReady) {
+                    return (
+                        <div className="flex items-center justify-center min-h-screen bg-gray-50">
+                            <div className="flex flex-col items-center">
+                                <svg className="animate-spin h-8 w-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                </svg>
+                                <p className="text-xl text-gray-700 mt-3">Connexion à la base de données...</p>
+                            </div>
+                        </div>
+                    );
                 }
 
-                onSubmit({
-                    type,
-                    distance: dist,
-                    duration: duration,
-                    avgHeartRate: Math.floor(70 + Math.random() * 50), 
-                    maxSpeed: (dist / (parseInt(duration.split(':')[0]) + parseInt(duration.split(':')[1]) / 60) * 60).toFixed(1) || 0
-                });
+                return (
+                    <div className={`p-4 sm:p-6 bg-gray-50 min-h-screen font-sans`}>
+                        <div className="max-w-4xl mx-auto">
+                            <header className="text-center mb-8">
+                                <h1 className="text-3xl font-extrabold text-blue-800 flex flex-col items-center justify-center">
+                                    <span className="text-orange-500">MON</span> SUIVI SPORTIF PWA
+                                </h1>
+                                <p className="text-gray-600 mt-1">
+                                    Application Web Progressive (ID Utilisateur: 
+                                    <span className="font-mono text-xs text-red-500 break-all ml-1">{userId || 'Non Authentifié'}</span>
+                                </p>
+                                {error && <p className="mt-2 text-sm text-red-600 font-medium p-2 bg-red-100 rounded-lg">{error}</p>}
+                            </header>
 
-                setDistance('');
-                setDuration('');
-            };
+                            {/* Formulaire d'Ajout */}
+                            <ActivityForm onSubmit={addActivity} loading={loading} showMessage={showMessage} />
 
-            return (
-                <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-lg mb-8 border-t-4 border-orange-500">
-                    <h2 className="text-xl font-semibold mb-4 text-gray-700">Enregistrer une Nouvelle Activité (Manuelle)</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                        <select 
-                            value={type} 
-                            onChange={(e) => setType(e.target.value)}
-                            className="col-span-1 p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                            disabled={loading}
-                        >
-                            <option value="Course">Course 🏃</option>
-                            <option value="Vélo">Vélo 🚴</option>
-                            <option value="Natation">Natation 🏊</option>
-                            <option value="Randonnée">Randonnée 🚶</option>
-                        </select>
-                        <input
-                            type="number"
-                            step="0.1"
-                            placeholder="Distance (km)"
-                            value={distance}
-                            onChange={(e) => setDistance(e.target.value)}
-                            className="col-span-1 p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                            disabled={loading}
-                            required
-                        />
-                        <input
-                            type="text"
-                            placeholder="Durée (h:min)"
-                            value={duration}
-                            onChange={(e) => setDuration(e.target.value)}
-                            className="col-span-1 p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                            disabled={loading}
-                            required
-                        />
-                        <button
-                            type="submit"
-                            className={`col-span-1 p-3 text-white font-bold rounded-lg shadow-md transition ${loading ? 'bg-gray-400' : 'bg-orange-500 hover:bg-orange-600'}`}
-                            disabled={loading}
-                        >
-                            {loading ? 'Sauvegarde...' : 'Ajouter l\'Activité'}
-                        </button>
-                    </div>
-                </form>
-            );
-        };
-
-        // --- Composant Liste des Activités ---
-        const ActivityList = ({ activities }) => (
-            <div className="bg-white p-6 rounded-xl shadow-lg border-t-4 border-blue-500">
-                <h2 className="text-xl font-semibold mb-4 text-gray-700">Historique des Activités ({activities.length})</h2>
-                <ul className="space-y-3">
-                    {activities.length === 0 ? (
-                        <p className="text-gray-500 italic">Aucune activité enregistrée.</p>
-                    ) : (
-                        activities.map(activity => (
-                            <li key={activity.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition duration-150 border-l-4 border-orange-400">
-                                <div className="flex items-center">
-                                    <span className="text-xl mr-3">{activity.type === 'Course' ? '🏃' : activity.type === 'Vélo' ? '🚴' : activity.type === 'Natation' ? '🏊' : '🚶'}</span>
-                                    <div>
-                                        <p className="font-semibold text-gray-800">{activity.type} - {new Date(activity.date.toDate()).toLocaleDateString('fr-FR')}</p>
-                                        <p className="text-sm text-gray-500">
-                                            {activity.distance.toFixed(2)} km | {activity.duration} | FC Moy: {activity.avgHeartRate} BPM
-                                        </p>
-                                    </div>
+                            {/* Section Graphique de Tendance */}
+                            <div className="bg-white p-6 rounded-xl shadow-lg mb-8 border-t-4 border-blue-500">
+                                <h2 className="text-xl font-semibold mb-4 text-gray-700">Distance Quotidienne (7 derniers jours)</h2>
+                                <div style={{ width: '100%', height: 300 }}>
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={getChartData()} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
+                                            <XAxis dataKey="name" stroke={COLORS.blue} />
+                                            <YAxis stroke={COLORS.blue} label={{ value: 'Distance (km)', angle: -90, position: 'insideLeft', fill: COLORS.blue }} />
+                                            <Tooltip contentStyle={{ backgroundColor: 'white', border: `1px solid ${COLORS.blue}`, borderRadius: '8px' }} />
+                                            <Legend wrapperStyle={{ paddingTop: '10px' }} />
+                                            <Line type="monotone" dataKey="Distance" stroke={COLORS.orange} strokeWidth={3} dot={{ stroke: COLORS.orange, strokeWidth: 2 }} activeDot={{ r: 8 }} />
+                                        </LineChart>
+                                    </ResponsiveContainer>
                                 </div>
-                                <span className="text-blue-500 font-medium text-sm">V. Max: {activity.maxSpeed} km/h</span>
-                            </li>
-                        ))
-                    )}
-                </ul>
-            </div>
-        );
-        
-        // Rendu final
-        ReactDOM.render(<App />, document.getElementById('root'));
+                            </div>
+
+                            {/* Liste des Activités */}
+                            <ActivityList activities={activities} />
+
+                        </div>
+                        {/* Modal pour les messages (remplace alert) */}
+                        <MessageModal 
+                            message={modal.message} 
+                            type={modal.type} 
+                            onClose={() => setModal({ message: '', type: 'info' })}
+                        />
+                    </div>
+                );
+            };
+
+            // --- Composant Formulaire d'Activité ---
+            const ActivityForm = ({ onSubmit, loading, showMessage }) => {
+                const [type, setType] = useState('Course');
+                const [distance, setDistance] = useState('');
+                const [duration, setDuration] = useState('');
+
+                const handleSubmit = (e) => {
+                    e.preventDefault();
+                    const dist = parseFloat(distance);
+                    const durationParts = duration.split(':');
+                    
+                    if (isNaN(dist) || dist <= 0 || !type || durationParts.length !== 2 || durationParts.some(p => isNaN(parseInt(p)))) {
+                        showMessage("Veuillez remplir tous les champs correctement (Distance > 0, Durée format H:MM).", "error");
+                        return;
+                    }
+                    
+                    // Calcul simple de la vitesse max en km/h
+                    const hours = parseInt(durationParts[0] || 0);
+                    const minutes = parseInt(durationParts[1] || 0);
+                    const totalHours = hours + (minutes / 60);
+
+                    if (totalHours <= 0) {
+                         showMessage("La durée doit être supérieure à zéro.", "error");
+                         return;
+                    }
+
+                    const maxSpeed = (dist / totalHours);
+
+                    onSubmit({
+                        type,
+                        distance: dist,
+                        duration: duration,
+                        // Génère une fréquence cardiaque moyenne aléatoire pour simuler les données TomTom
+                        avgHeartRate: Math.floor(70 + Math.random() * 50), 
+                        maxSpeed: parseFloat(maxSpeed.toFixed(1))
+                    });
+
+                    setDistance('');
+                    setDuration('');
+                };
+
+                return (
+                    <form onSubmit={handleSubmit} className="bg-white p-6 rounded-xl shadow-lg mb-8 border-t-4 border-orange-500">
+                        <h2 className="text-xl font-semibold mb-4 text-gray-700">Enregistrer une Nouvelle Activité (Manuelle)</h2>
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                            <select 
+                                value={type} 
+                                onChange={(e) => setType(e.target.value)}
+                                className="col-span-1 p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                                disabled={loading}
+                            >
+                                <option value="Course">Course 🏃</option>
+                                <option value="Vélo">Vélo 🚴</option>
+                                <option value="Natation">Natation 🏊</option>
+                                <option value="Randonnée">Randonnée 🚶</option>
+                            </select>
+                            <input
+                                type="number"
+                                step="0.1"
+                                placeholder="Distance (km)"
+                                value={distance}
+                                onChange={(e) => setDistance(e.target.value)}
+                                className="col-span-1 p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                                disabled={loading}
+                                required
+                            />
+                            <input
+                                type="text"
+                                placeholder="Durée (h:min - Ex: 1:30)"
+                                value={duration}
+                                onChange={(e) => setDuration(e.target.value)}
+                                className="col-span-1 p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
+                                disabled={loading}
+                                required
+                            />
+                            <button
+                                type="submit"
+                                className={`col-span-1 p-3 text-white font-bold rounded-lg shadow-md transition ${loading ? 'bg-gray-400' : 'bg-orange-500 hover:bg-orange-600'}`}
+                                disabled={loading}
+                            >
+                                {loading ? 'Sauvegarde...' : 'Ajouter l\'Activité'}
+                            </button>
+                        </div>
+                    </form>
+                );
+            };
+
+            // --- Composant Liste des Activités ---
+            const ActivityList = ({ activities }) => (
+                <div className="bg-white p-6 rounded-xl shadow-lg border-t-4 border-blue-500">
+                    <h2 className="text-xl font-semibold mb-4 text-gray-700">Historique des Activités ({activities.length})</h2>
+                    <ul className="space-y-3">
+                        {activities.length === 0 ? (
+                            <p className="text-gray-500 italic">Aucune activité enregistrée. Ajoutez-en une manuellement ci-dessus.</p>
+                        ) : (
+                            activities.map(activity => (
+                                <li key={activity.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition duration-150 border-l-4 border-orange-400">
+                                    <div className="flex items-center w-full sm:w-auto">
+                                        <span className="text-xl mr-3 flex-shrink-0">
+                                            {activity.type === 'Course' ? '🏃' : activity.type === 'Vélo' ? '🚴' : activity.type === 'Natation' ? '🏊' : '🚶'}
+                                        </span>
+                                        <div className="flex-grow">
+                                            <p className="font-semibold text-gray-800 text-base">{activity.type} - {activity.date.toDate().toLocaleDateString('fr-FR')}</p>
+                                            <p className="text-sm text-gray-500">
+                                                {activity.distance.toFixed(2)} km | {activity.duration} | FC Moy: {activity.avgHeartRate} BPM
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <span className="text-blue-500 font-medium text-sm mt-2 sm:mt-0 sm:ml-4 flex-shrink-0">V. Max: {activity.maxSpeed.toFixed(1)} km/h</span>
+                                </li>
+                            ))
+                        )}
+                    </ul>
+                </div>
+            );
+            
+            // Rendu final
+            ReactDOM.render(<App />, document.getElementById('root'));
+        }; // FIN du window.onload
     </script>
 </body>
 </html>
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-import { getAnalytics } from "firebase/analytics";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyDilpknYSeSj2-4Q1xsFc4NfehZXxEnPnQ",
-  authDomain: "tomtom-connect.firebaseapp.com",
-  projectId: "tomtom-connect",
-  storageBucket: "tomtom-connect.firebasestorage.app",
-  messagingSenderId: "511599756901",
-  appId: "1:511599756901:web:ad86f208e0dd561858288c",
-  measurementId: "G-XQ9SL95199"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyDilpknYSeSj2-4Q1xsFc4NfehZXxEnPnQ",
-  authDomain: "tomtom-connect.firebaseapp.com",
-  projectId: "tomtom-connect",
-  storageBucket: "tomtom-connect.firebasestorage.app",
-  messagingSenderId: "511599756901",
-  appId: "1:511599756901:web:ad86f208e0dd561858288c",
-  measurementId: "G-XQ9SL95199"
-};// For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyDilpknYSeSj2-4Q1xsFc4NfehZXxEnPnQ",
-  authDomain: "tomtom-connect.firebaseapp.com",
-  projectId: "tomtom-connect",
-  storageBucket: "tomtom-connect.firebasestorage.app",
-  messagingSenderId: "511599756901",
-  appId: "1:511599756901:web:ad86f208e0dd561858288c",
-  measurementId: "G-XQ9SL95199"
-};
